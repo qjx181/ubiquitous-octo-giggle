@@ -1,0 +1,18 @@
+2026-05-07 15:34:10,559 [INFO] generate_embeddings - ==================================================
+2026-05-07 15:34:10,560 [INFO] generate_embeddings -   文本转向量 开始
+2026-05-07 15:34:10,560 [INFO] generate_embeddings - ==================================================
+2026-05-07 15:34:10,578 [INFO] generate_embeddings - 已备份旧文件 -> C:\Users\qjx\Desktop\github\项目二\data\chunks\招股说明书_带向量_备份_20260507_153410.jsonl
+2026-05-07 15:34:10,594 [INFO] generate_embeddings - 加载了1471个chunks
+2026-05-07 15:34:10,595 [INFO] generate_embeddings - 加载BGE-M3模型...
+2026-05-07 15:34:16,974 [INFO] generate_embeddings - 模型加载完成，输出维度: 1024
+2026-05-07 15:34:16,977 [INFO] generate_embeddings - 共1471个chunks，转向量...
+2026-05-07 15:35:14,881 [INFO] generate_embeddings - 向量化完成，维度: 1024
+2026-05-07 15:35:14,920 [INFO] generate_embeddings - 转向量完成: 成功1471条
+2026-05-07 15:35:14,921 [INFO] generate_embeddings - ==================================================
+2026-05-07 15:35:14,921 [INFO] generate_embeddings -   向量化质量报告
+2026-05-07 15:35:14,921 [INFO] generate_embeddings - ==================================================
+2026-05-07 15:35:14,921 [INFO] generate_embeddings - 总chunks: 1471
+2026-05-07 15:35:14,921 [INFO] generate_embeddings - 含向量: 1471/1471
+2026-05-07 15:35:14,921 [INFO] generate_embeddings - 向量维度: {1024}
+2026-05-07 15:35:15,776 [INFO] generate_embeddings - 已保存: C:\Users\qjx\Desktop\github\项目二\data\chunks\招股说明书_带向量.jsonl
+2026-05-07 15:35:15,776 [INFO] generate_embeddings - 🎉 转向量完成
