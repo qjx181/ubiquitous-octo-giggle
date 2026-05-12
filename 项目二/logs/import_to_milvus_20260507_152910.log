@@ -1,0 +1,34 @@
+2026-05-07 15:29:10,942 [INFO] import_to_milvus - ==================================================
+2026-05-07 15:29:10,942 [INFO] import_to_milvus -   导入Milvus 开始
+2026-05-07 15:29:10,942 [INFO] import_to_milvus - ==================================================
+2026-05-07 15:29:10,942 [INFO] import_to_milvus - 连接Milvus: 127.0.0.1:19530
+2026-05-07 15:29:10,961 [INFO] import_to_milvus - Milvus连接成功
+2026-05-07 15:29:10,986 [INFO] import_to_milvus - 集合 'prospectus' 创建成功
+2026-05-07 15:29:11,506 [INFO] import_to_milvus - 向量索引创建成功
+2026-05-07 15:29:12,170 [INFO] import_to_milvus - 加载向量数据: C:\Users\qjx\Desktop\github\项目二\data\chunks\招股说明书_带向量.jsonl
+2026-05-07 15:29:12,183 [INFO] import_to_milvus - 已加载1471条文本映射
+2026-05-07 15:29:12,658 [INFO] import_to_milvus - 共加载1471条
+2026-05-07 15:29:12,658 [INFO] import_to_milvus - 向量维度校验通过: 1024维
+2026-05-07 15:29:12,994 [ERROR] import_to_milvus - 第0-100条导入失败: <DataNotMatchException: (code=1, message=The Input data type is inconsistent with defined schema, {page_start} field should be a INT64, but got a {<class 'int'>} instead. Detail: 'NoneType' object cannot be interpreted as an integer)>
+2026-05-07 15:29:12,999 [ERROR] import_to_milvus - 第100-200条导入失败: <DataNotMatchException: (code=1, message=The Input data type is inconsistent with defined schema, {page_start} field should be a INT64, but got a {<class 'NoneType'>} instead. Detail: 'NoneType' object cannot be interpreted as an integer)>
+2026-05-07 15:29:13,001 [ERROR] import_to_milvus - 第200-300条导入失败: <DataNotMatchException: (code=1, message=The Input data type is inconsistent with defined schema, {page_start} field should be a INT64, but got a {<class 'NoneType'>} instead. Detail: 'NoneType' object cannot be interpreted as an integer)>
+2026-05-07 15:29:13,005 [ERROR] import_to_milvus - 第300-400条导入失败: <DataNotMatchException: (code=1, message=The Input data type is inconsistent with defined schema, {page_start} field should be a INT64, but got a {<class 'int'>} instead. Detail: 'NoneType' object cannot be interpreted as an integer)>
+2026-05-07 15:29:13,049 [INFO] import_to_milvus - 已导入500/1471条
+2026-05-07 15:29:13,051 [ERROR] import_to_milvus - 第500-600条导入失败: <DataNotMatchException: (code=1, message=The Input data type is inconsistent with defined schema, {page_start} field should be a INT64, but got a {<class 'int'>} instead. Detail: 'NoneType' object cannot be interpreted as an integer)>
+2026-05-07 15:29:13,056 [ERROR] import_to_milvus - 第600-700条导入失败: <DataNotMatchException: (code=1, message=The Input data type is inconsistent with defined schema, {page_start} field should be a INT64, but got a {<class 'NoneType'>} instead. Detail: 'NoneType' object cannot be interpreted as an integer)>
+2026-05-07 15:29:13,057 [ERROR] import_to_milvus - 第700-800条导入失败: <DataNotMatchException: (code=1, message=The Input data type is inconsistent with defined schema, {page_start} field should be a INT64, but got a {<class 'NoneType'>} instead. Detail: 'NoneType' object cannot be interpreted as an integer)>
+2026-05-07 15:29:13,079 [INFO] import_to_milvus - 已导入900/1471条
+2026-05-07 15:29:13,100 [INFO] import_to_milvus - 已导入1000/1471条
+2026-05-07 15:29:13,103 [ERROR] import_to_milvus - 第1000-1100条导入失败: <DataNotMatchException: (code=1, message=The Input data type is inconsistent with defined schema, {page_start} field should be a INT64, but got a {<class 'int'>} instead. Detail: 'NoneType' object cannot be interpreted as an integer)>
+2026-05-07 15:29:13,108 [ERROR] import_to_milvus - 第1100-1200条导入失败: <DataNotMatchException: (code=1, message=The Input data type is inconsistent with defined schema, {page_start} field should be a INT64, but got a {<class 'NoneType'>} instead. Detail: 'NoneType' object cannot be interpreted as an integer)>
+2026-05-07 15:29:13,110 [ERROR] import_to_milvus - 第1200-1300条导入失败: <DataNotMatchException: (code=1, message=The Input data type is inconsistent with defined schema, {page_start} field should be a INT64, but got a {<class 'NoneType'>} instead. Detail: 'NoneType' object cannot be interpreted as an integer)>
+2026-05-07 15:29:13,111 [ERROR] import_to_milvus - 第1300-1400条导入失败: <DataNotMatchException: (code=1, message=The Input data type is inconsistent with defined schema, {page_start} field should be a INT64, but got a {<class 'NoneType'>} instead. Detail: 'NoneType' object cannot be interpreted as an integer)>
+2026-05-07 15:29:13,113 [ERROR] import_to_milvus - 第1400-1471条导入失败: <DataNotMatchException: (code=1, message=The Input data type is inconsistent with defined schema, {page_start} field should be a INT64, but got a {<class 'NoneType'>} instead. Detail: 'NoneType' object cannot be interpreted as an integer)>
+2026-05-07 15:29:14,652 [INFO] import_to_milvus - 导入完成，集合当前数据量: 300
+2026-05-07 15:29:14,658 [INFO] import_to_milvus - ==================================================
+2026-05-07 15:29:14,658 [INFO] import_to_milvus -   导入质量报告
+2026-05-07 15:29:14,658 [INFO] import_to_milvus - ==================================================
+2026-05-07 15:29:14,658 [INFO] import_to_milvus - 集合: prospectus
+2026-05-07 15:29:14,661 [INFO] import_to_milvus - 数据量: 300条
+2026-05-07 15:29:14,661 [INFO] import_to_milvus - 向量维度: 1024
+2026-05-07 15:29:14,661 [INFO] import_to_milvus - 🎉 导入完成
