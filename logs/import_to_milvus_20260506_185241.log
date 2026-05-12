@@ -1,0 +1,15 @@
+2026-05-06 18:52:41,499 [INFO] import_to_milvus - ==================================================
+2026-05-06 18:52:41,499 [INFO] import_to_milvus -   导入Milvus 开始
+2026-05-06 18:52:41,500 [INFO] import_to_milvus - ==================================================
+2026-05-06 18:52:41,500 [INFO] import_to_milvus - 连接Milvus: 127.0.0.1:19530
+2026-05-06 18:52:41,565 [INFO] import_to_milvus - Milvus连接成功
+2026-05-06 18:52:41,620 [INFO] import_to_milvus - 集合 'prospectus' 创建成功
+2026-05-06 18:52:42,163 [INFO] import_to_milvus - 向量索引创建成功
+2026-05-06 18:52:43,419 [ERROR] import_to_milvus - 文件不存在: C:\Users\qjx\Desktop\git\项目二\data\chunks\招股说明书_带向量.jsonl
+2026-05-06 18:52:43,425 [INFO] import_to_milvus - ==================================================
+2026-05-06 18:52:43,425 [INFO] import_to_milvus -   导入质量报告
+2026-05-06 18:52:43,425 [INFO] import_to_milvus - ==================================================
+2026-05-06 18:52:43,425 [INFO] import_to_milvus - 集合: prospectus
+2026-05-06 18:52:43,428 [INFO] import_to_milvus - 数据量: 0条
+2026-05-06 18:52:43,429 [INFO] import_to_milvus - 向量维度: 1024
+2026-05-06 18:52:43,429 [INFO] import_to_milvus - 🎉 导入完成
