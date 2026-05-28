@@ -28,11 +28,23 @@ import json
 import sys
 import os
 import logging
+from contextlib import contextmanager
 from typing import Any
 
 logging.basicConfig(level=logging.INFO,
                     format="%(asctime)s [%(name)s] %(message)s")
 logger = logging.getLogger("rag-mcp")
+
+
+@contextmanager
+def _QuietStdout():
+    """临时将 sys.stdout 重定向到 sys.stderr，保护 MCP 管道"""
+    original_stdout = sys.stdout
+    sys.stdout = sys.stderr
+    try:
+        yield
+    finally:
+        sys.stdout = original_stdout
 
 
 def load_rag_service():
@@ -184,7 +196,11 @@ def main_stdio():
     from mcp.types import Tool, TextContent
 
     logger.info("🚀 启动 MCP Server (Stdio 模式)")
-    service = load_rag_service()
+
+    # 服务初始化可能输出 tqdm 进度条到 stdout，
+    # 用 _QuietStdout 重定向到 stderr，避免污染 MCP JSON-RPC 管道
+    with _QuietStdout():
+        service = load_rag_service()
 
     server = Server("rag-prospectus")
 
