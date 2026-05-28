@@ -7,6 +7,8 @@ import logging
 import threading
 # 【作用】导入 asyncio 模块，用于 async 调用链
 import asyncio
+# 【作用】导入 re 模块，用于正则匹配（如对比查询检测、公司名提取）
+import re
 # 【作用】从 typing 导入类型提示，让代码更可读、编辑器能自动补全
 # 【原理】List 表示列表类型，Dict 表示字典，Any 表示任意类型，Optional 表示可选（可能为 None），Generator 表示生成器（惰性返回数据）
 from typing import List, Dict, Any, Optional, Generator
@@ -327,11 +329,17 @@ class RetrievalService:
 
     def _cache_key(self, q: str, ct: Optional[str], tk: int) -> str:
         # 【作用】根据查询内容生成一个唯一的缓存键（MD5 哈希值），用于在 Redis 中查找或存储缓存
-        """根据查询、内容类型、top_k 生成 MD5 缓存键"""
-        # 【逻辑】把问题 q、内容类型 ct、top_k 值 tk 拼成一个字符串，中间用竖线分隔，然后取 UTF-8 编码后的 MD5 哈希值
-        # 【原理】MD5 哈希可以把任意长度的输入变成一个固定长度（32位十六进制）的字符串，保证不同输入生成不同键
+        """根据查询、内容类型、top_k、检索配置签名 生成 MD5 缓存键
+
+        包含 cache_config_signature 的效果：
+          改参数（top_k/阈值/权重等）→ 签名变 → 缓存键变 → 自动换新结果
+          不需要启动时 flushdb()，也不会引起 cache miss 风暴
+        """
+        # 【逻辑】把问题 q、内容类型 ct、top_k 值 tk、配置签名拼成一个字符串
+        # 【原理】MD5 哈希可以把任意长度的输入变成一个固定长度（32位十六进制）的字符串
         # 【注意】MD5 虽然不安全（可碰撞），但用来做缓存键足够了
-        return hashlib.md5(f"{q}|{ct}|{tk}".encode("utf-8")).hexdigest()
+        config_sig = settings.cache_config_signature
+        return hashlib.md5(f"{config_sig}|{q}|{ct}|{tk}".encode("utf-8")).hexdigest()
 
     def _check_cache(self, k: str) -> Optional[Dict]:
         # 【作用】根据缓存键去 Redis 中查缓存，有就返回缓存的数据，没有就返回 None
@@ -390,9 +398,64 @@ class RetrievalService:
         新增优化（v2）：
           1. 自进化引擎：从历史查询中学习优化策略
           2. 状态机：跟踪每个查询的执行进度（仅在Pipeline模式下）
+
+        v2.0 新增：自动知识库检测
+          如果外部未显式指定 kb_name，通过问题中的公司名自动推断。
+          这是"架构级解决跨公司数据混淆"——不需要用户手动指定 kb_name。
         """
         import time
         start_time = time.time()
+
+        # 【作用】v2.0：自动检测公司实体 → 推断 kb_name
+        # 【设计意图】如果外部未传入 kb_name，从问题文本中自动识别公司名，
+        #            填入对应的 kb_name 过滤条件。这是"架构级解决跨公司数据混淆"。
+        # 【不修改】如果外部已传入 kb_name（如 MCP 的 kb_name 参数），保留外部值。
+        # 【跳过】对比类查询（用户故意跨库比较），不自动过滤。
+        is_comparison = False
+        if kb_name is None:
+            # 粗略检测是否为对比查询，跳过自动过滤
+            is_comparison = bool(re.search(
+                r"(对比|比较|vs|versus|和.*(?:相比|之间|的.*和)|与.*相比)", question
+            ))
+            if not is_comparison:
+                try:
+                    from .kb_mapping import resolve_kb_name, list_knowledge_bases
+                    detected = resolve_kb_name(question)
+                    if detected:
+                        logger.info(f"🏢 自动检测知识库: {detected}")
+                        kb_name = detected
+                except Exception:
+                    pass
+
+        # 【作用】v2.0：模糊公司名 → 触发澄清反问
+        # 【设计意图】如果问题中提到了"公司""发行人"等模糊指代但自动检测未命中
+        #            具体公司（kb_name 仍为 None），且不是对比类查询，则向用户
+        #            澄清具体是哪家公司。这是"存在歧义时不猜"原则的实现。
+        if kb_name is None and not is_comparison:
+            # 检查问题是否包含模糊的公司指代
+            company_indicator = bool(re.search(
+                r"(公司|企业|发行人|本[公企])", question
+            ))
+            # 排除问候语和完全无关的问题
+            business_indicator = bool(re.search(
+                r"(营收|收入|利润|资产|负债|风险|业务|产品|技术|"
+                r"专利|股本|发行|财务|管理|股东|董事)", question
+            ))
+            if company_indicator and business_indicator:
+                try:
+                    from .kb_mapping import list_knowledge_bases
+                    kbs = list_knowledge_bases()
+                    kb_list = "》、《".join(
+                        info["description"] for _, info in kbs.items()
+                    )
+                    prompt = (
+                        f"请问您指的是哪家公司？当前可查询《{kb_list}》。"
+                        f"您可以直接说公司全称或简称。"
+                    )
+                    logger.info(f"❓ 触发公司名澄清: {prompt[:60]}...")
+                    return [], question, history, prompt
+                except Exception:
+                    pass
 
         # 【作用】查询自进化引擎，获取优化建议
         # 【设计意图】如果历史中有类似查询且效果好，直接复用其参数
@@ -415,7 +478,6 @@ class RetrievalService:
 
         # 【作用】检测是否为比较型查询
         # 【设计意图】比较型查询（如"A和B哪个好"）需要特殊处理
-        is_comparison = False
         if _PIPELINE_AVAILABLE and check_comparison_intent is not None:
             try:
                 is_comparison = check_comparison_intent(question)

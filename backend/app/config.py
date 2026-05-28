@@ -12,6 +12,7 @@ backend/app/config.py — 配置管理
 # 【作用】从functools导入lru_cache装饰器，用于缓存函数返回值
 # 【原理】lru_cache是"最近最少使用缓存"，被装饰的函数只执行一次，后续调用直接返回缓存结果
 # 【逻辑】get_settings()被多次调用时，每次都创建Settings对象太浪费，用缓存只创建一次
+import hashlib
 from functools import lru_cache
 
 # 【作用】从pydantic导入Field类，用于定义字段的详细属性（默认值、环境变量名等）
@@ -226,6 +227,27 @@ class Settings(BaseSettings):
     # 【作用】BM25混合检索的文档数量上限
     # 【原理】小规模语料库BM25效果好，文档过多时BM25索引构建变慢，超过此值自动禁用
     HYBRID_MAX_DOCS: int = Field(default=10000, env="HYBRID_MAX_DOCS")
+
+    # ==========================================
+    # 检索配置版本（用于缓存键版本化）
+    # ==========================================
+
+    @property
+    def cache_config_signature(self) -> str:
+        """所有影响检索结果的参数的 MD5 签名
+
+        只要任意参数改变，签名就变 → 缓存键自动失效。
+        避免"改完参数还在用旧缓存"的问题，
+        同时不需要启动时 flushdb()。
+        """
+        raw = (
+            f"topk={self.RETRIEVAL_TOP_K}|"
+            f"rerank={self.RERANKER_TOP_K}|"
+            f"bm25={self.BM25_WEIGHT}|"
+            f"vec={self.VECTOR_WEIGHT}|"
+            f"min={self.MIN_SCORE_THRESHOLD}"
+        )
+        return hashlib.md5(raw.encode()).hexdigest()[:8]
 
     # ==========================================
     # Pydantic内部配置

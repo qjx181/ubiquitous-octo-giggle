@@ -74,14 +74,6 @@ def load_rag_service():
 
     service = get_retrieval_service()
 
-    # 启动时自动清空 Redis 缓存（确保每次重启都是最新检索结果）
-    if service.features.get("cache") and service._redis_cache:
-        try:
-            service._redis_cache._client.flushdb()
-            logger.info("🧹 Redis 缓存已清空")
-        except Exception as e:
-            logger.info(f"ℹ️ Redis 缓存清理跳过: {e}")
-
     # 输出启动状态
     enabled = [n for n, ok in service.features.items() if ok]
     logger.info(f"🔧 增强功能: {', '.join(enabled) if enabled else '无'}")
