@@ -189,9 +189,9 @@ class Settings(BaseSettings):
     # ==========================================
 
     # 【作用】向量检索返回的结果数量（Top-K）
-    RETRIEVAL_TOP_K: int = 3
+    RETRIEVAL_TOP_K: int = 8
     # 【作用】重排序后最终返回的结果数量
-    RERANKER_TOP_K: int = 3
+    RERANKER_TOP_K: int = 5
     # 【作用】BM25检索在混合检索中的权重（0.3表示占30%）
     BM25_WEIGHT: float = 0.3
     # 【作用】向量检索在混合检索中的权重（0.7表示占70%）
@@ -199,7 +199,7 @@ class Settings(BaseSettings):
     # 【作用】检索结果的最低相似度分数阈值，低于此值的片段会被过滤掉
     # 【原理】向量检索返回的余弦相似度在0~1之间，低于阈值说明语义不相关
     # 【设计意图】过滤掉低相关性的检索结果，提高Context Precision
-    MIN_SCORE_THRESHOLD: float = Field(default=0.3, env="MIN_SCORE_THRESHOLD")
+    MIN_SCORE_THRESHOLD: float = Field(default=0.2, env="MIN_SCORE_THRESHOLD")
 
     # ==========================================
     # 缓存配置
