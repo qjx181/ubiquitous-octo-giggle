@@ -28,3 +28,6 @@ test_result.txt
 RAG_Agent面试题集.md
 开发工单.md
 开发工单_企业级.md
+
+# 数据文件（除非明确需要，不提交）
+data/
