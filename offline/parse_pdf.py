@@ -31,8 +31,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 # 从项目根目录导入配置
 from config import (
-    PDF_PATH,  # PDF源文件路径
-    PARSED_JSON_PATH,  # 解析结果输出路径
+    get_kb_paths,  # v2.0: 获取指定KB的文件路径
     PARSED_DIR,  # 解析结果目录
     PDF_HEADER_KEYWORDS,  # 页眉关键词列表（用于跳过页眉）
     PDF_PAGE_NUMBER_PATTERN,  # 页码正则表达式（用于跳过页码）
@@ -113,27 +112,45 @@ def backup_previous_output(output_path: str):
 def format_table_as_text(table_data: list[list[str]], table_index: int) -> str:
     """
     作用：将表格数据格式化为易读的Markdown文本
-    
+
     原理：
       - Markdown表格格式被广泛支持，LLM也能很好理解
       - 保留表头和行列对应关系，避免信息丢失
       - 用 | 分隔列，用 --- 分隔表头和数据
-    
+
     参数：
       table_data: 二维数组，每个元素是单元格文本
                   例如：[["姓名", "年龄"], ["张三", "25"]]
       table_index: 表格序号（从0开始），用于生成标题
-    
+
     返回：
-      Markdown格式的表格文本
-    
-    示例：
-      输入：[["项目", "2023年"], ["营收", "100万"]]
-      输出：
-        [表格 1]
-        项目 | 2023年
-        --- | ---
-        营收 | 100万
+      Markdown格式的表格文本（str）
+
+    格式说明：
+      - 表头行：由第一行数据生成，用" | "连接
+      - 分隔行：每列对应一个"---"，用" | "连接（未处理对齐方式）
+      - 数据行：从第二行开始，跳过全空行，用" | "连接
+      - 表格标题："[表格 N]"，放在Markdown表格上方
+
+    边界情况：
+      - 空数据：table_data为空或table_data[0]为空，返回空字符串
+      - 空行：数据行中所有单元格都为空，跳过
+      - 单元格为空：转换为空字符串处理
+
+    面试官可能问：
+      Q: 为什么选Markdown格式？不是HTML或JSON？
+      A: Markdown表格是文本格式中最轻量的结构化表示。LLM对Markdown
+         理解好（广泛训练数据），比HTML省token，比JSON直观可读。
+         这是"结构化 vs 简洁"之间的平衡。
+
+      Q: Markdown对齐方式（:---）为什么不处理？
+      A: 对齐方式对LLM理解表格内容几乎没有影响，加冒号反而增加
+         不必要的字符开销。如果面试官追问，可以说"对齐是可视化需求，
+         不是语义需求"。
+
+      Q: 一个很大的表格怎么分块？
+      A: 这里只做格式转换，不分块。分块在chunk_text.py的chunk_table()
+         中处理，策略是保留完整表头，按数据行切分。
     """
     # 防御性编程：检查数据有效性
     if not table_data or not table_data[0]:
@@ -173,29 +190,59 @@ def format_table_as_text(table_data: list[list[str]], table_index: int) -> str:
 def extract_tables_from_page(page: fitz.Page, page_num: int) -> list[dict]:
     """
     作用：从PDF页面中提取表格
-    
+
     原理：
-      - PyMuPDF的find_tables()使用机器学习模型检测页面中的表格区域
+      - PyMuPDF的find_tables()分析PDF矢量指令中的表格线（横线、竖线构成的网格）来定位表格区域
       - 自动识别表格的边框、单元格位置
       - extract()方法提取每个单元格的文本内容
-    
+
+    API类型（面试高频考点）：
+      page.find_tables()            → fitz.TableFinder（表格查找器对象）
+      tab_finder.tables             → list[fitz.Table]（Table对象列表，不是字符串！）
+      table.extract()               → list[list[str]]（二维字符串数组，每行每列的单元格文本）
+      table_data[0]                 → list[str]（表头行）
+      table_data[0][0]              → str（单个单元格文本）
+
     参数：
       page: fitz.Page对象，PDF的一页
       page_num: 页码（从1开始），用于日志和输出
-    
+
     返回：
-      表格字典列表，每个字典包含：
-        - type: "table"（类型标记）
+      表格字典列表（list[dict]），每个字典包含：
+        - type: "table"（类型标记，区别于普通文本的"text"）
         - page_num: 页码
         - table_index: 表格序号
         - text: Markdown格式的表格文本
         - row_count: 行数
         - col_count: 列数
         - char_count: 字符数
-    
-    异常处理：
-      - 单表格提取失败：记录警告，继续处理其他表格
+
+    边界情况：
+      - 跨页表格：extract_tables_from_page逐页执行，跨页表格会被拆成两个独立Table对象
+      - 无边框表格：find_tables依赖表格线检测，无边框表格可能检测不到
+      - 单表格提取失败：记录警告，continue继续处理其他表格
       - 整页表格检测失败：记录警告，返回空列表
+
+    面试官可能问：
+      Q: tab_finder.tables的元素是什么类型？
+      A: list[fitz.Table]，不是字符串。table.extract()才返回字符串数据。
+         验证方法：print(type(table))跑一次就知道。
+
+      Q: 表格和普通文本怎么共存？
+      A: 在extract_text_from_pdf中，文本块和表格块都在同一个pages列表里，
+         通过type字段区分："text" vs "table"。
+
+      Q: 为什么选Markdown格式存表格？
+      A: Markdown表格是结构化文本，LLM能理解行列关系。比起HTML更简洁，
+         比起纯文本保留了二维结构。对齐方式（:---）对LLM影响不大，未处理。
+
+      Q: 表格跨页怎么处理？
+      A: 当前版本未合并跨页表格，跨页会被拆成两个独立对象。
+         优化方向：检测相邻页表格结构是否一致，若行列数相同则合并。
+
+      Q: find_tables()检测不到哪些表格？
+      A: 无边框表格（只有空白分隔，没有绘制表格线）、
+         图片形式的表格（find_tables只分析PDF矢量指令，不OCR图片）。
     """
     tables = []  # 存储提取到的表格
     try:
@@ -247,7 +294,7 @@ def extract_tables_from_page(page: fitz.Page, page_num: int) -> list[dict]:
 def extract_text_from_pdf(pdf_path: str) -> list[dict]:
     """
     作用：把PDF文件逐页读出来，提取每一页的文字和表格
-    
+
     原理：
       1. fitz.open() 打开PDF文件，返回文档对象
       2. 循环每一页：
@@ -255,19 +302,49 @@ def extract_text_from_pdf(pdf_path: str) -> list[dict]:
          b. page.find_tables() 检测并提取表格结构
       3. 跳过空白页（无内容的页）
       4. 单页失败跳过，不中断整体流程（容错设计）
-    
+
     参数：
       pdf_path: PDF文件路径
-    
+
     返回：
-      内容块列表，每个元素是字典：
+      内容块列表（list[dict]），每个元素是字典：
         文本块：{"page_num", "source_pdf", "text", "char_count", "type": "text"}
-        表格块：{"page_num", "source_pdf", "text", "char_count", "type": "table", ...}
-    
+        表格块：{"page_num", "source_pdf", "text", "char_count", "type": "table",
+                 "table_index", "row_count", "col_count"}
+
     设计要点：
       - 一页可能产生多个内容块（1个文本 + N个表格）
-      - 文本和表格分开存储，便于后续差异化处理
-      - 异常处理：单页失败不影响其他页
+      - 文本和表格通过type字段区分，便于下游差异化处理
+      - 表格通过pages.extend(tables)合并到同一个列表
+      - 异常处理：单页失败不影响其他页（容错设计）
+
+    边界情况：
+      - 多栏排版：page.get_text()默认按物理位置输出，双栏页面左右栏文本交错混合
+        （当前版本未专门处理多栏，这是已知改进方向）
+      - 空白页：text为空或strip后为空，跳过不添加
+      - 页眉页脚：get_text()会提取所有文本元素，包括页眉页脚
+        （当前版本不做过滤，分块阶段再做清理）
+
+    面试官可能问：
+      Q: 文本和表格怎么共存？在同一个列表里怎么区分？
+      A: 文本块type="text"（第304-310行），表格块type="table"（第315-317行
+         pages.extend(tables)加入）。下游按type字段分流处理。
+
+      Q: page.get_text()在多栏排版下有什么问题？
+      A: 招股说明书的双栏页面，get_text()按PDF流式顺序输出，左右两栏文本
+         会交错混合。解决方案：用page.get_text('blocks')获取文本块坐标，
+         按x坐标聚类判断多栏，然后按栏重新排列。或用sort=True排序。
+         当前版本未处理多栏。
+
+      Q: 页眉页脚为什么不在提取时就过滤掉？
+      A: 设计上采用"先提取、后清理"策略。提取阶段保留原始完整性，
+         分块阶段（chunk_text.py）做页眉过滤。好处是：万一过滤规则
+         有问题，原始数据还在JSON里，可以重新处理不需要再解析PDF。
+
+      Q: 单页解析失败会影响整个PDF吗？
+      A: 不会。每页有独立try-except，失败后记录警告、跳过当前页、
+         continue到下一页。这是典型的"容错设计"——宁愿少一页数据
+         也不让整个管道崩溃。
     """
     pages = []  # 存储所有内容块
     total_tables = 0  # 统计总表格数（用于日志）
@@ -336,26 +413,55 @@ def extract_text_from_pdf(pdf_path: str) -> list[dict]:
 def guess_section(text: str) -> str | None:
     """
     作用：判断当前页属于招股说明书的哪个章节
-    
+
     原理：
       - 招股说明书的章节标题通常在页面顶部
       - 需要跳过页眉（公司名、页码）等干扰信息
       - 章节标题有两种格式：
         1. 编号格式："第X节 XXX" 或 "第X章 XXX"
         2. 无编号格式："重大事项提示"、"释义"等
-    
+
     参数：
       text: 页面文本内容
-    
+
     返回：
       章节名字符串（如"第一节 释义"），没找到返回None
-    
+
     处理逻辑：
       1. 只看前10行（章节标题不会出现在页面中间）
       2. 跳过页眉行（匹配PDF_HEADER_KEYWORDS）
       3. 跳过页码行（匹配PDF_PAGE_NUMBER_PATTERN）
-      4. 匹配编号章节标题
-      5. 匹配无编号章节标题
+      4. 匹配编号章节标题（正则）
+      5. 匹配无编号章节标题（关键词列表+长度限制）
+
+    边界情况：
+      - 只看前10行而非全文扫描：基于"章节标题在顶部"的假设
+      - 页眉过滤仅在此函数中做，不影响正文提取的原始文本
+      - 长度限制（len(line) < 30）防止正文中意外匹配关键词
+      - 页脚完全未处理（当前版本无页脚过滤逻辑）
+
+    面试官可能问：
+      Q: 为什么只看前10行？会不会漏掉章节标题？
+      A: 招股说明书的章节标题始终在页面顶部。前10行包含了页眉
+         （通常2-3行）和章节标题。如果标题不在顶部，说明这一页
+         是正文延续，不需要重复识别章节名。
+
+      Q: 页眉过滤只在章节识别时做，正文的页眉怎么办？
+      A: 设计上采用两阶段清理：1）章节识别时只过滤前10行的页眉
+         用于正确识别章节名；2）正文中的页眉在分块阶段（chunk_text.py
+         第168行）按行匹配关键词+长度<60做第二次过滤。这样既不影响
+         原始数据的完整性，又能保证最终进入检索的内容不含页眉。
+
+      Q: 页脚怎么处理？
+      A: 当前版本没有专门的页脚过滤逻辑。页码通过
+         PDF_PAGE_NUMBER_PATTERN正则匹配跳过了，但页脚的文本内容
+         （如"武汉兴图新科招股意向书"）会和正文混在一起，靠分块阶段的
+         关键词过滤清除。
+
+      Q: 为什么无编号章节标题还要加长度<30的限制？
+      A: 防止正文中意外包含"重大事项提示"等关键词。比如正文里写着
+         "详见'重大事项提示'部分"，如果没长度限制就会误判为章节标题。
+         章节标题本身很短（通常<20字），加30字限制是安全阈值。
     """
     # 将文本按换行拆分成行列表
     lines = text.split("\n")
@@ -503,10 +609,14 @@ def print_quality_report(pages: list[dict]):
 # =============================================================================
 # 程序入口
 # =============================================================================
-def main():
+def main(kb_name: str = None):
     """
     作用：程序入口，串联整个PDF解析流程
-    
+
+    参数：
+      kb_name: 知识库名称（从环境变量 KB_NAME 获取，默认"招股说明书1"）
+
+    执行流程：
     执行流程：
       1. 校验输入文件是否存在
       2. 备份旧输出文件（如果存在）
@@ -523,23 +633,30 @@ def main():
     logger.info("=" * 50)
     logger.info("  PDF 解析 开始")
     logger.info("=" * 50)
-    
+
+    # v2.0: 确定知识库名称
+    if kb_name is None:
+        kb_name = os.environ.get("KB_NAME", "招股说明书1")
+    kb_paths = get_kb_paths(kb_name)
+    pdf_path = kb_paths["pdf_path"]
+    parsed_json_path = kb_paths["parsed_json_path"]
+
     # -------------------------------------------------------------------------
     # 步骤1：检查输入文件
     # -------------------------------------------------------------------------
-    if not check_file_exists(str(PDF_PATH)):
+    if not check_file_exists(str(pdf_path)):
         return  # 文件不存在，提前退出
-    
+
     # -------------------------------------------------------------------------
     # 步骤2：备份旧输出
     # -------------------------------------------------------------------------
-    backup_previous_output(str(PARSED_JSON_PATH))
-    
+    backup_previous_output(str(parsed_json_path))
+
     # -------------------------------------------------------------------------
     # 步骤3：读取PDF
     # -------------------------------------------------------------------------
-    logger.info(f"读取PDF: {PDF_PATH}")
-    pages = extract_text_from_pdf(str(PDF_PATH))
+    logger.info(f"读取PDF: {pdf_path}")
+    pages = extract_text_from_pdf(str(pdf_path))
     
     if not pages:
         logger.error("未读取到任何有效内容")
@@ -584,12 +701,12 @@ def main():
     PARSED_DIR.mkdir(parents=True, exist_ok=True)
     
     # 保存为JSON文件
-    # ensure_ascii=False: 保留中文字符，不转义为\uXXXX
+    # ensure_ascii=False: 保留中文字符，不转义为\\uXXXX
     # indent=2: 使用2个空格缩进，便于阅读
-    with open(PARSED_JSON_PATH, "w", encoding="utf-8") as f:
+    with open(parsed_json_path, "w", encoding="utf-8") as f:
         json.dump(pages, f, ensure_ascii=False, indent=2)
-    
-    logger.info(f"已保存: {PARSED_JSON_PATH}")
+
+    logger.info(f"已保存: {parsed_json_path}")
     logger.info("🎉 PDF 解析完成")
 
 
@@ -599,4 +716,6 @@ def main():
 # __name__ == "__main__" 确保只在直接运行此脚本时执行main()
 # 如果作为模块被导入，不会自动执行
 if __name__ == "__main__":
-    main()
+    import os, sys
+    kb = sys.argv[1] if len(sys.argv) > 1 else os.environ.get("KB_NAME", "招股说明书1")
+    main(kb_name=kb)

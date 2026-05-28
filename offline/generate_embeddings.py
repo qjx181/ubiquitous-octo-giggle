@@ -28,8 +28,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 # 从项目根目录导入配置
 from config import (
-    CHUNKS_JSONL_PATH,  # 分块结果输入路径
-    EMBEDDINGS_JSONL_PATH,  # 向量结果输出路径
+    get_kb_paths,  # v2.0: 获取指定KB的文件路径
     CHUNKS_DIR,  # chunks目录
     EMBEDDING_MODEL_PATH,  # BGE-M3模型本地路径
     EMBEDDING_BATCH_SIZE,  # 批量编码大小
@@ -154,6 +153,38 @@ def generate_embeddings(chunks: list[dict]) -> list[dict]:
       - 向量文件不存储text内容，只存储chunk_id
       - 检索时用chunk_id关联到文本文件
       - 好处：向量文件小，文本可独立更新
+
+    面试官可能问：
+      Q: 为什么用SentenceTransformer加载BGE-M3，不是直接用transformers？
+      A: SentenceTransformer封装了pooling和normalization，开箱即用。
+         如果用transformers的AutoModel，需要手动实现pooling策略
+         （mean pooling / cls pooling）和归一化，容易出错。
+         SentenceTransformer是社区标准做法。
+
+      Q: normalize_embeddings=True有什么作用？
+      A: 使输出向量的L2范数为1（向量长度=1）。归一化后，
+         内积（IP）= 余弦相似度。Milvus检索时用IP度量，
+         等价于用余弦相似度排序。如果不归一化，长向量的内积
+         天然大于短向量，会影响检索公平性。
+
+      Q: 为什么要把text从向量文件中解耦出去？
+      A: 一个1024维的float向量约4KB（1024 * 4字节），
+         一条text约500-800字符（UTF-8约1-2KB）。
+         如果不解耦，向量文件大小翻倍。更重要的是：
+         检索时只用到embedding字段，text只在返回结果时用，
+         分开后检索效率更高。
+
+      Q: 模型加载失败后为什么返回空列表而不是抛异常？
+      A: 离线管道的设计是"检查后中止"而非"运行时崩溃"。
+         generate_embeddings返回空列表后，调用方main()检查到
+         列表为空就记录错误并退出。用户知道"模型加载失败"，
+         不需要去看堆栈跟踪。
+
+      Q: 为什么用numpy的v.tolist()转为Python列表？
+      A: JSON不支持numpy数组序列化。v.tolist()把numpy.ndarray
+         转为嵌套的Python list，json.dump就能正常写入。
+         如果数据量大，改为np.save用二进制格式更快
+         （当前数据量小，JSONL足够）。
     """
     if not chunks:
         logger.error("没有chunk数据")
@@ -240,7 +271,7 @@ def generate_embeddings(chunks: list[dict]) -> list[dict]:
 # =============================================================================
 # 保存函数
 # =============================================================================
-def save_embeddings(chunks: list[dict]):
+def save_embeddings(chunks: list[dict], output_path: Path):
     """
     作用：保存带向量的chunks为JSONL文件
     
@@ -252,7 +283,7 @@ def save_embeddings(chunks: list[dict]):
     参数：
       chunks: 带向量的chunk列表
     """
-    op = Path(str(EMBEDDINGS_JSONL_PATH))
+    op = Path(str(output_path))
     op.parent.mkdir(parents=True, exist_ok=True)  # 创建目录（如果不存在）
     
     with open(op, "w", encoding="utf-8") as f:
@@ -297,9 +328,12 @@ def print_quality_report(chunks: list[dict]):
 # =============================================================================
 # 程序入口
 # =============================================================================
-def main():
+def main(kb_name: str = None):
     """
     作用：程序入口，加载chunks→转向量→质量报告→保存
+
+    参数：
+      kb_name: 知识库名称（从环境变量 KB_NAME 获取）
     
     执行流程：
       1. 检查输入文件
@@ -312,16 +346,24 @@ def main():
     logger.info("=" * 50)
     logger.info("  文本转向量 开始")
     logger.info("=" * 50)
-    
+
+    # v2.0: 确定知识库名称
+    import os
+    if kb_name is None:
+        kb_name = os.environ.get("KB_NAME", "招股说明书1")
+    kb_paths = get_kb_paths(kb_name)
+    chunks_jsonl_path = kb_paths["chunks_jsonl_path"]
+    embeddings_jsonl_path = kb_paths["embeddings_jsonl_path"]
+
     # 步骤1：检查输入文件
-    if not check_file_exists(str(CHUNKS_JSONL_PATH)):
+    if not check_file_exists(str(chunks_jsonl_path)):
         return
-    
+
     # 步骤2：备份旧输出
-    backup_previous_output(str(EMBEDDINGS_JSONL_PATH))
-    
+    backup_previous_output(str(embeddings_jsonl_path))
+
     # 步骤3：加载分块结果
-    chunks = load_chunks(str(CHUNKS_JSONL_PATH))
+    chunks = load_chunks(str(chunks_jsonl_path))
     if not chunks:
         logger.error("未加载到数据")
         return
@@ -337,7 +379,7 @@ def main():
     print_quality_report(vecs)
     
     # 步骤6：保存
-    save_embeddings(vecs)
+    save_embeddings(vecs, embeddings_jsonl_path)
     logger.info("🎉 转向量完成")
 
 
@@ -345,4 +387,6 @@ def main():
 # 脚本执行入口
 # =============================================================================
 if __name__ == "__main__":
-    main()
+    import os, sys
+    kb = sys.argv[1] if len(sys.argv) > 1 else os.environ.get("KB_NAME", "招股说明书1")
+    main(kb_name=kb)

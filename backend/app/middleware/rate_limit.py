@@ -1,22 +1,6 @@
 """
 backend/app/middleware/rate_limit.py — 限流中间件
 =================================================
-<<<<<<< HEAD
-职责：限制每个IP的请求频率，防止滥用
-
-功能：
-  1. 基于IP地址进行限流
-  2. 使用内存字典记录请求次数
-  3. 超过限制返回429状态码
-
-原理：
-  滑动窗口算法：在固定时间窗口内统计请求次数
-  超过阈值则拒绝请求，保护后端服务
-
-注意：
-  生产环境建议使用Redis实现分布式限流
-  当前为单机内存实现，重启后计数器清零
-=======
 作用：限制每个IP的请求频率，防止恶意攻击或意外高并发导致服务崩溃
 原理：
   1. 滑动窗口算法——记录每个IP的请求时间戳
@@ -28,7 +12,6 @@ backend/app/middleware/rate_limit.py — 限流中间件
   - 保护后端服务不被突发流量冲垮
   - 防止恶意用户大量刷API
   - 滑动窗口比固定窗口更平滑（不会在边界瞬间集中爆发）
->>>>>>> 6d37b33 (提交信息)
 """
 
 import logging
@@ -44,35 +27,32 @@ logger = logging.getLogger(__name__)
 
 class RateLimitMiddleware(BaseHTTPMiddleware):
     """
-<<<<<<< HEAD
-    限流中间件
-
-    限制每个IP在单位时间内的请求次数
-
-=======
     作用：限流中间件
     原理：每个IP独立计数，超过阈值返回HTTP 429 Too Many Requests
->>>>>>> 6d37b33 (提交信息)
     参数：
         max_requests: 时间窗口内最大请求数（默认100）
         window_seconds: 时间窗口大小（默认60秒）
+
+    面试官可能问：
+      Q: 滑动窗口限流和固定窗口限流有什么区别？
+      A: 固定窗口：每60秒重置一次计数器，窗口边界处可能瞬间爆发
+         （如59秒和0秒各发100请求，实际2秒内200请求）。
+         滑动窗口：记录每个请求的时间戳，清除窗口外的旧记录，
+         任意时间窗口内的请求数都不会超过阈值。更平滑公平。
+
+      Q: 内存限流有什么局限性？
+      A: 重启后限流记录丢失；多进程/多实例下各实例独立计数，
+         实际限流效果打折扣（4个worker各100次/分→实际400次/分）。
+         生产环境应该用Redis实现分布式限流。
+
+      Q: client.host在生产环境可能不准确？
+      A: 经过反向代理（Nginx/云负载均衡）后，request.client.host
+         是代理IP而不是真实客户端IP。应该从X-Forwarded-For或
+         X-Real-IP头获取真实IP。这是开发环境简化的实现。
     """
 
     def __init__(self, app, max_requests: int = 100, window_seconds: int = 60):
         """
-<<<<<<< HEAD
-        初始化限流中间件
-
-        参数：
-            app: FastAPI应用
-            max_requests: 最大请求数
-            window_seconds: 时间窗口（秒）
-        """
-        super().__init__(app)
-        self.max_requests = max_requests
-        self.window_seconds = window_seconds
-        # 存储每个IP的请求记录: {ip: [(timestamp1, count), (timestamp2, count), ...]}
-=======
         作用：初始化限流中间件
         参数：
             app: FastAPI应用实例
@@ -84,26 +64,10 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         self.window_seconds = window_seconds      # 时间窗口
         # 存储每个IP的请求时间戳
         # 格式：{ip: [timestamp1, timestamp2, ...]}
->>>>>>> 6d37b33 (提交信息)
         self.requests: Dict[str, list] = {}
 
     async def dispatch(self, request: Request, call_next):
         """
-<<<<<<< HEAD
-        处理请求，检查是否超过限流阈值
-
-        参数：
-            request: HTTP请求对象
-            call_next: 下一个处理函数
-
-        返回：
-            HTTP响应对象
-        """
-        # 获取客户端IP
-        client_ip = request.client.host if request.client else "unknown"
-
-        # 检查是否超过限流
-=======
         作用：处理每个请求，检查是否超过限流阈值
         逻辑：
           1. 获取客户端IP
@@ -121,7 +85,6 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         client_ip = request.client.host if request.client else "unknown"
 
         # 检查是否超过限流阈值
->>>>>>> 6d37b33 (提交信息)
         if self._is_rate_limited(client_ip):
             logger.warning(f"限流触发 | IP: {client_ip} | 路径: {request.url.path}")
             return JSONResponse(
@@ -133,42 +96,14 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
                 }
             )
 
-<<<<<<< HEAD
-        # 记录本次请求
-        self._record_request(client_ip)
-
-        # 继续处理请求
-=======
         # 记录本次请求的时间戳
         self._record_request(client_ip)
 
         # 继续处理请求（调用下一个中间件或路由）
->>>>>>> 6d37b33 (提交信息)
         return await call_next(request)
 
     def _is_rate_limited(self, client_ip: str) -> bool:
         """
-<<<<<<< HEAD
-        检查IP是否超过限流阈值
-
-        参数：
-            client_ip: 客户端IP地址
-
-        返回：
-            True表示超过限流，False表示未超过
-        """
-        current_time = time.time()
-        window_start = current_time - self.window_seconds
-
-        # 获取该IP的请求记录
-        ip_requests = self.requests.get(client_ip, [])
-
-        # 清理过期的请求记录（滑动窗口）
-        ip_requests = [t for t in ip_requests if t > window_start]
-        self.requests[client_ip] = ip_requests
-
-        # 检查请求次数
-=======
         作用：检查某个IP是否超过了限流阈值
         原理：滑动窗口算法
           1. 获取当前时间戳
@@ -192,17 +127,11 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         self.requests[client_ip] = ip_requests
 
         # 检查请求次数是否超过阈值
->>>>>>> 6d37b33 (提交信息)
         return len(ip_requests) >= self.max_requests
 
     def _record_request(self, client_ip: str):
         """
-<<<<<<< HEAD
-        记录请求时间戳
-
-=======
         作用：记录一次请求的时间戳
->>>>>>> 6d37b33 (提交信息)
         参数：
             client_ip: 客户端IP地址
         """

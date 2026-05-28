@@ -1,0 +1,9 @@
+# 隔离的 RAGAS 依赖目录
+.eval_deps/
+
+# Python 缓存
+__pycache__/
+*.pyc
+
+# 评估结果（可选，如果你不想提交）
+eval_results_*.json

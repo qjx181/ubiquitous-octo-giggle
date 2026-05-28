@@ -191,7 +191,8 @@ def merge_lines(text: str) -> str:
             # 情况2：当前行以中文数字开头（如"一、"、"二、"）
             # 说明是新段落的开始
             if re.match(r"^[一二三四五六七八九十]", s):
-                buf += s
+                merged.append(buf)
+                buf = s
                 continue
             
             # 情况3：上一行以句末标点结尾，且当前行不短
@@ -482,7 +483,7 @@ def build_chunks_by_section(pages: list[dict]) -> list[dict]:
                         "page_start": pr[0],
                         "page_end": pr[1],
                         "section": sec_name,
-                        "source_pdf": str(pages[0].get("source_pdf", "")),
+                        "source_pdf": str(text_pages[0].get("source_pdf", "")),
                         "char_count": len(buf_text),
                     })
                     cid += 1
@@ -517,7 +518,7 @@ def build_chunks_by_section(pages: list[dict]) -> list[dict]:
                             "page_start": pr[0],
                             "page_end": pr[1],
                             "section": sec_name,
-                            "source_pdf": str(pages[0].get("source_pdf", "")),
+                            "source_pdf": str(text_pages[0].get("source_pdf", "")),
                             "char_count": len(sub),
                         })
                         cid += 1
@@ -531,7 +532,7 @@ def build_chunks_by_section(pages: list[dict]) -> list[dict]:
                     "page_start": pr[0],
                     "page_end": pr[1],
                     "section": sec_name,
-                    "source_pdf": str(pages[0].get("source_pdf", "")),
+                    "source_pdf": str(text_pages[0].get("source_pdf", "")),
                     "char_count": len(buf_text),
                 })
                 cid += 1
@@ -543,7 +544,7 @@ def build_chunks_by_section(pages: list[dict]) -> list[dict]:
             table_chunks = chunk_table(
                 table_page["text"],
                 table_page,
-                max_chars=CHUNK_MAX_CHARS
+                max_chars=2000  # 表格专用：比文本800大，保留表头+更多数据行
             )
             for tc in table_chunks:
                 tc["chunk_id"] = f"chunk_{cid:04d}"

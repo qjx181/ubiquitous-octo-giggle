@@ -42,6 +42,19 @@ class RedisCache:
     - 自动JSON序列化/反序列化
     - 连接管理
     - 异常处理
+
+    面试官可能问：
+      Q: 为什么要封装Redis操作？直接用redis-py不行吗？
+      A: 封装后可以自动处理JSON序列化（省去每次json.dumps/loads）、
+         统一异常处理（连接断开时不抛异常而是静默降级）、
+         统一TTL管理（从config读取默认值）。调用方不需要关心
+         Redis协议细节，只需要set/get。
+
+      Q: Redis在RAG系统中承担什么角色？
+      A: 缓存相同query的检索+生成结果，避免重复调用LLM。
+         query "公司的营收是多少" 第一次走完整RAG流程（检索+LLM），
+         缓存结果后第二次直接返回。TTL=1小时保证缓存不过期太久。
+         也用于session管理（用户登录状态）。
     """
     
     def __init__(

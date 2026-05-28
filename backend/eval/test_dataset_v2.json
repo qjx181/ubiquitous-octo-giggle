@@ -1,0 +1,157 @@
+[
+  {
+    "question": "公司的主要业务是什么？",
+    "ground_truth": "公司是一家基于网络通信的军队专用视频指挥控制系统和视频预警控制系统的研发、生产、销售及服务提供商，主要产品包括视频指挥控制类和视频预警控制类系统。",
+    "expected_intent": "业务查询",
+    "group": "train"
+  },
+  {
+    "question": "公司的控股股东和实际控制人是谁？",
+    "ground_truth": "公司的控股股东和实际控制人为程家明。程家明直接持有公司2,886.29万股，持股比例为52.29%；同时通过兴图投资间接持有594.33万股，间接持股比例为10.77%。",
+    "expected_intent": "股东查询",
+    "group": "train"
+  },
+  {
+    "question": "公司本次发行多少股？",
+    "ground_truth": "公司本次发行1,840万股，占发行后总股本的比例为25.00%。发行后总股本为7,360万股。",
+    "expected_intent": "发行信息查询",
+    "group": "train"
+  },
+  {
+    "question": "公司的主要客户有哪些？",
+    "ground_truth": "公司的主要客户包括军队客户（直接面向军队或服务于军队的总体单位、系统集成单位）和民用客户（政府单位或大型企业，如监狱、油田等）。",
+    "expected_intent": "业务查询",
+    "group": "train"
+  },
+  {
+    "question": "公司募集资金的主要用途是什么？",
+    "ground_truth": "公司募集资金的主要用途包括：1）基于云联邦架构的军用视频指挥平台升级及产业化项目；2）研发中心建设项目；3）补充流动资金15,000万元。",
+    "expected_intent": "募集资金查询",
+    "group": "train"
+  },
+  {
+    "question": "公司的注册资本是多少？",
+    "ground_truth": "公司本次发行前总股本为5,520.00万股，注册资本为5,520万元。",
+    "expected_intent": "基本信息查询",
+    "group": "train"
+  },
+  {
+    "question": "公司面临哪些主要风险？",
+    "ground_truth": "公司面临的主要风险包括：1）技术风险：新技术、新产品研发试制可能未达预期；2）经营风险：行业及客户集中度高；3）募投项目风险。",
+    "expected_intent": "风险查询",
+    "group": "train"
+  },
+  {
+    "question": "公司的主要产品和技术有哪些？",
+    "ground_truth": "公司的主要产品分为三大类：视频指挥控制类产品、视频预警控制类产品和其他产品，均依托于自主核心技术音视频中间件。",
+    "expected_intent": "业务查询",
+    "group": "train"
+  },
+  {
+    "question": "公司的经营范围是什么？",
+    "ground_truth": "公司的经营范围为：计算机软硬件、智能数码产品、通讯设备、音视频编解码设备及计算机外围电子产品的设计与开发、技术咨询、技术转让、生产、批发零售及售后服务；计算机网络系统集成、安装、技术咨询、技术转让；广告设计、制作、代理、发布。",
+    "expected_intent": "基本信息查询",
+    "group": "train"
+  },
+  {
+    "question": "公司的保荐机构是谁？",
+    "ground_truth": "公司的保荐机构为中泰证券股份有限公司。",
+    "expected_intent": "发行信息查询",
+    "group": "train"
+  },
+  {
+    "question": "公司的子公司有哪些？",
+    "ground_truth": "公司的子公司包括武汉启目科技有限公司（注册资本100万元，成立于2016年5月3日，持股100%）等。",
+    "expected_intent": "基本信息查询",
+    "group": "train"
+  },
+  {
+    "question": "公司的核心竞争优势是什么？",
+    "ground_truth": "公司的核心竞争优势包括：1）技术优势：拥有自主核心技术音视频中间件；2）客户优势：深耕国防军队领域；3）行业先发优势。",
+    "expected_intent": "业务查询",
+    "group": "train"
+  },
+  {
+    "question": "公司2024年的净利润是多少？",
+    "ground_truth": "",
+    "expected_intent": "财务查询",
+    "negative": true,
+    "group": "train"
+  },
+  {
+    "question": "公司的竞争对手华为的市场份额是多少？",
+    "ground_truth": "",
+    "expected_intent": "竞争分析",
+    "negative": true,
+    "group": "train"
+  },
+  {
+    "question": "公司CEO的个人学历背景是什么？",
+    "ground_truth": "",
+    "expected_intent": "高管信息",
+    "negative": true,
+    "group": "train"
+  },
+  {
+    "question": "公司的董事和高级管理人员有哪些？",
+    "ground_truth": "公司董事会成员和高级管理人员信息详见招股说明书第七节公司治理与独立性。董事长为程家明。",
+    "expected_intent": "高管信息",
+    "group": "eval"
+  },
+  {
+    "question": "公司最近三年的营业收入分别是多少？",
+    "ground_truth": "公司最近三年的营业收入数据详见招股说明书第八节财务会计信息与管理层分析。具体金额需要查看财务报表。",
+    "expected_intent": "财务查询",
+    "group": "eval"
+  },
+  {
+    "question": "募投项目的具体投资金额是多少？",
+    "ground_truth": "公司募集资金拟投资项目包括：1）基于云联邦架构的军用视频指挥平台升级及产业化项目；2）研发中心建设项目；3）补充流动资金15,000万元。",
+    "expected_intent": "募集资金查询",
+    "group": "eval"
+  },
+  {
+    "question": "公司的供应商有哪些？供应商集中度如何？",
+    "ground_truth": "公司供应商信息详见招股说明书第六节业务与技术。报告期内公司前五名供应商采购集中度较高，主要采购内容为服务器、存储设备等。",
+    "expected_intent": "业务查询",
+    "group": "eval"
+  },
+  {
+    "question": "公司的毛利率是多少？变化趋势如何？",
+    "ground_truth": "公司毛利率数据详见招股说明书第八节财务会计信息与管理层分析。公司主营业务毛利率较高，主要因为军队专用视频系统的技术含量和定制化程度较高。",
+    "expected_intent": "财务查询",
+    "group": "eval"
+  },
+  {
+    "question": "公司的股权结构是怎样的？",
+    "ground_truth": "公司股权结构详见招股说明书第五节发行人基本情况。控股股东为程家明，直接持股52.29%，通过兴图投资间接持股10.77%。",
+    "expected_intent": "股东查询",
+    "group": "eval"
+  },
+  {
+    "question": "公司的技术标准和专利情况如何？",
+    "ground_truth": "公司技术标准和专利信息详见招股说明书第六节业务与技术。公司拥有自主核心技术音视频中间件，并取得多项专利和软件著作权。",
+    "expected_intent": "业务查询",
+    "group": "eval"
+  },
+  {
+    "question": "公司的董事长是谁？总经理是谁？",
+    "ground_truth": "公司董事长为程家明，同时担任公司总经理。程家明为公司创始人、控股股东和实际控制人。",
+    "expected_intent": "高管信息",
+    "group": "eval"
+  },
+  {
+    "question": "公司的股价走势如何？",
+    "ground_truth": "",
+    "expected_intent": "股价查询",
+    "negative": true,
+    "group": "eval"
+  },
+  {
+    "question": "公司计划什么时候分红？分红方案是什么？",
+    "ground_truth": "",
+    "expected_intent": "财务查询",
+    "negative": true,
+    "group": "eval"
+  }
+]

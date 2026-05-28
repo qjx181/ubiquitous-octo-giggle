@@ -1,18 +1,6 @@
 """
 backend/app/middleware/logging_middleware.py — 请求日志中间件
 ===============================================================
-<<<<<<< HEAD
-职责：记录每个HTTP请求的详细信息
-
-功能：
-  1. 记录请求方法、路径、IP地址
-  2. 记录请求处理时间
-  3. 记录响应状态码
-
-原理：
-  FastAPI中间件是一个异步函数，在请求处理前后执行
-  可以获取请求和响应信息，用于日志记录和监控
-=======
 作用：记录每个HTTP请求的详细信息（谁、什么时间、请求了什么、花了多久）
 原理：
   1. FastAPI中间件像一个"钩子"，在请求处理前后执行
@@ -24,7 +12,6 @@ backend/app/middleware/logging_middleware.py — 请求日志中间件
   - 快速定位慢请求（耗时超过几秒的请求需要优化）
   - 监控异常状态码（5xx表示服务器错误）
   - 统计各接口的调用频率
->>>>>>> 6d37b33 (提交信息)
 """
 
 import logging
@@ -39,32 +26,29 @@ logger = logging.getLogger(__name__)
 
 class LoggingMiddleware(BaseHTTPMiddleware):
     """
-<<<<<<< HEAD
-    请求日志中间件
-
-    在每个请求处理前后记录日志，便于监控和排查问题
-=======
     作用：记录HTTP请求的日志
     原理：在请求开始和结束时分别记录日志
       开始时：记录请求方法、路径、客户端IP
       结束时：记录状态码、处理耗时
->>>>>>> 6d37b33 (提交信息)
+
+    面试官可能问：
+      Q: 中间件的dispatch方法为什么是async def？
+      A: FastAPI基于ASGI（异步服务器网关接口），所有请求处理都在
+         事件循环中。async def dispatch让中间件不阻塞事件循环，
+         处理日志记录的同时其他请求也能被处理。
+
+      Q: 为什么不直接用logging模块记录，要写中间件？
+      A: 中间件能拿到请求级别的上下文（方法、路径、客户端IP、耗时），
+         这些信息logging模块不知道。用中间件可以统一记录所有请求的
+         日志，而不是在每个路由函数里手动写logger.info()。
+
+      Q: X-Process-Time响应头的作用？
+      A: 给前端/调用方反馈请求耗时，前端可以判断是否超时。
+         调试时也能快速定位慢接口。"X-"前缀是HTTP自定义响应头惯例。
     """
 
     async def dispatch(self, request: Request, call_next):
         """
-<<<<<<< HEAD
-        处理请求
-
-        参数：
-            request: HTTP请求对象
-            call_next: 下一个处理函数
-
-        返回：
-            HTTP响应对象
-        """
-        # 记录请求开始时间
-=======
         作用：处理每个请求，记录日志
         参数：
             request: HTTP请求对象
@@ -73,31 +57,19 @@ class LoggingMiddleware(BaseHTTPMiddleware):
             HTTP响应对象（添加了X-Process-Time响应头）
         """
         # 记录请求开始时间（精确到秒）
->>>>>>> 6d37b33 (提交信息)
         start_time = time.time()
 
         # 获取客户端IP
         client_host = request.client.host if request.client else "unknown"
 
         # 记录请求信息
-<<<<<<< HEAD
-=======
         # 作用：知道谁在什么时间请求了什么接口
->>>>>>> 6d37b33 (提交信息)
         logger.info(
             f"请求开始 | {request.method} {request.url.path} | "
             f"客户端: {client_host}"
         )
 
         # 调用下一个处理函数（执行实际的请求处理）
-<<<<<<< HEAD
-        response = await call_next(request)
-
-        # 计算处理时间
-        process_time = time.time() - start_time
-
-        # 记录响应信息
-=======
         # await说明：中间件是异步的，不阻塞其他请求
         response = await call_next(request)
 
@@ -106,7 +78,6 @@ class LoggingMiddleware(BaseHTTPMiddleware):
 
         # 记录响应信息
         # 作用：知道这个请求处理了多久，状态码是否正常
->>>>>>> 6d37b33 (提交信息)
         logger.info(
             f"请求完成 | {request.method} {request.url.path} | "
             f"状态码: {response.status_code} | "
@@ -114,11 +85,8 @@ class LoggingMiddleware(BaseHTTPMiddleware):
         )
 
         # 添加响应头，显示处理时间
-<<<<<<< HEAD
-=======
         # 原理：响应头中的X-前缀是自定义头的惯例
         # 前端或调试工具可以看到这个请求花了多久
->>>>>>> 6d37b33 (提交信息)
         response.headers["X-Process-Time"] = str(process_time)
 
         return response

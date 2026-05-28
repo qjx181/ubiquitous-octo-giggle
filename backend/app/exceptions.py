@@ -1,13 +1,6 @@
 """
 backend/app/exceptions.py — 异常处理模块
 =========================================
-<<<<<<< HEAD
-作用：定义企业级异常体系，统一错误码和错误信息
-原理：
-  1. 使用枚举定义错误码，避免魔法数字
-  2. 统一异常格式，便于前端处理和日志分析
-  3. 继承 HTTPException，与 FastAPI 错误处理兼容
-=======
 作用：定义企业级异常体系，统一错误码和错误信息格式
 原理：
   1. 使用枚举(Enum)定义所有错误码，避免魔法数字散落在代码各处
@@ -19,7 +12,6 @@ backend/app/exceptions.py — 异常处理模块
   - 统一错误格式，前端处理更简单
   - 错误码有分类，快速定位问题领域
   - BusinessException抛出的异常会被FastAPI自动捕获并转为结构化JSON
->>>>>>> 6d37b33 (提交信息)
 """
 
 from enum import Enum
@@ -28,53 +20,6 @@ from fastapi import HTTPException
 
 class ErrorCode(Enum):
     """
-<<<<<<< HEAD
-    错误码枚举
-    
-    错误码格式：1xxxx（系统）、2xxxx（认证）、3xxxx（业务）、4xxxx（RAG）
-    """
-    
-    # =============================================================================
-    # 系统错误 1xxxx
-    # =============================================================================
-    INTERNAL_ERROR = (10001, "Internal Server Error", 500)
-    SERVICE_UNAVAILABLE = (10002, "Service Unavailable", 503)
-    TIMEOUT_ERROR = (10003, "Request Timeout", 504)
-    
-    # =============================================================================
-    # 认证错误 2xxxx
-    # =============================================================================
-    UNAUTHORIZED = (20001, "Unauthorized", 401)
-    FORBIDDEN = (20002, "Forbidden", 403)
-    TOKEN_EXPIRED = (20003, "Token Expired", 401)
-    
-    # =============================================================================
-    # 业务错误 3xxxx
-    # =============================================================================
-    INVALID_PARAMETER = (30001, "Invalid Parameter", 400)
-    RESOURCE_NOT_FOUND = (30002, "Resource Not Found", 404)
-    DUPLICATE_RESOURCE = (30003, "Duplicate Resource", 409)
-    
-    # =============================================================================
-    # RAG错误 4xxxx
-    # =============================================================================
-    DOCUMENT_NOT_FOUND = (40001, "Document Not Found", 404)
-    RETRIEVAL_EMPTY = (40002, "No Relevant Content Found", 404)
-    LLM_GENERATION_FAILED = (40003, "Answer Generation Failed", 500)
-    
-    def __init__(self, code: int, message: str, status_code: int):
-        """
-        初始化错误码
-        
-        参数：
-            code: 错误码数字
-            message: 错误信息
-            status_code: HTTP状态码
-        """
-        self.code = code
-        self.message = message
-        self.status_code = status_code
-=======
     作用：错误码枚举，定义系统中所有可能的错误
     格式：（错误码数字，错误信息，HTTP状态码）
     分类规则：
@@ -125,29 +70,10 @@ class ErrorCode(Enum):
         self.code = code                # 错误码数字
         self.message = message          # 错误信息
         self.status_code = status_code  # HTTP状态码
->>>>>>> 6d37b33 (提交信息)
 
 
 class BusinessException(HTTPException):
     """
-<<<<<<< HEAD
-    业务异常类
-    
-    统一业务异常格式，返回结构化的错误信息
-    
-    使用示例：
-        raise BusinessException(ErrorCode.RETRIEVAL_EMPTY)
-        raise BusinessException(ErrorCode.LLM_GENERATION_FAILED, "SGLang服务无响应")
-    """
-    
-    def __init__(self, error_code: ErrorCode, detail: str = None):
-        """
-        初始化业务异常
-        
-        参数：
-            error_code: 错误码枚举
-            detail: 详细错误信息（可选，默认使用错误码的message）
-=======
     作用：业务异常类，统一业务异常格式
     原理：继承FastAPI的HTTPException，FastAPI会自动捕获并返回结构化JSON
     使用示例：
@@ -167,21 +93,14 @@ class BusinessException(HTTPException):
         参数：
             error_code: 错误码枚举
             detail: 详细的错误描述（可选，默认使用error_code的message）
->>>>>>> 6d37b33 (提交信息)
         """
         self.error_code = error_code
         super().__init__(
             status_code=error_code.status_code,
             detail={
-<<<<<<< HEAD
-                "code": error_code.code,
-                "message": error_code.message,
-                "detail": detail or error_code.message,
-=======
                 "code": error_code.code,                    # 错误码
                 "message": error_code.message,               # 错误信息
                 "detail": detail or error_code.message,      # 详细描述
->>>>>>> 6d37b33 (提交信息)
             }
         )
 
@@ -192,20 +111,11 @@ class BusinessException(HTTPException):
 
 def raise_if_empty(result: list, message: str = "未找到相关数据"):
     """
-<<<<<<< HEAD
-    如果结果为空则抛出异常
-    
-    参数：
-        result: 查询结果列表
-        message: 错误信息
-    
-=======
     作用：如果结果列表为空则抛出业务异常
     原理：在检索结果为空时直接中断流程，避免把空结果传给LLM
     参数：
         result: 查询结果列表
         message: 错误信息
->>>>>>> 6d37b33 (提交信息)
     异常：
         BusinessException: 如果结果为空
     """
@@ -215,19 +125,10 @@ def raise_if_empty(result: list, message: str = "未找到相关数据"):
 
 def raise_if_not_found(obj, message: str = "资源不存在"):
     """
-<<<<<<< HEAD
-    如果对象为空则抛出异常
-    
-    参数：
-        obj: 查询对象
-        message: 错误信息
-    
-=======
     作用：如果对象为空则抛出业务异常
     参数：
         obj: 查询对象
         message: 错误信息
->>>>>>> 6d37b33 (提交信息)
     异常：
         BusinessException: 如果对象为空
     """
