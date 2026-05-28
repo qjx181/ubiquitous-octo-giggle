@@ -1,13 +1,14 @@
 # -*- coding: utf-8 -*-
 """
 Query理解模块
-功能：意图识别、实体提取、问题分解、消歧处理
+功能：意图识别、实体提取、问题分解、消歧处理 + 公司实体识别
 
 模块职责：
 1. 意图识别 - 识别用户问题是关于财务、风险、业务等哪个方面
 2. 实体提取 - 从问题中提取时间、金钱、人名等实体
-3. 问题分解 - 将复杂问题分解为多个简单子问题
-4. 消歧处理 - 判断是否需要向用户澄清问题
+3. 公司实体识别 - 从问题中识别公司名称，自动推断知识库过滤条件
+4. 问题分解 - 将复杂问题分解为多个简单子问题
+5. 消歧处理 - 判断是否需要向用户澄清问题
 """
 
 # 【作用】导入正则表达式模块，用于模式匹配
@@ -27,6 +28,11 @@ import jieba
 # 【作用】导入jieba的词性标注模块
 # 【原理】pseg.cut(text)返回(word, flag)迭代器，flag是词性标记如"nr"=人名、"nt"=机构名
 import jieba.posseg as pseg
+
+# 【作用】导入知识库名称解析器，用于多公司场景下的自动 kb_name 推断
+# 【设计意图】这是"架构级解决跨公司数据混淆"的核心——在查询理解层自动识别
+#            公司实体并填入 kb_name，不依赖用户手动指定。
+from .kb_mapping import resolve_kb_name, list_knowledge_bases
 
 
 class IntentType(Enum):
@@ -90,6 +96,8 @@ class QueryUnderstandingResult:
       - sub_queries: 问题分解结果，复杂问题拆成多个子问题
       - needs_clarification: 是否需追问用户补充信息
       - clarification_prompt: 追问提示语（如"您想了解哪个时间段的财务数据？"）
+      - detected_kb_name: 自动检测到的知识库名称（如"招股说明书1"），
+        用于多公司场景下自动加 kb_name 过滤，None 表示未检测到
 
     面试官可能问：
       Q: 为什么需要QueryUnderstandingResult这个数据类？
@@ -106,6 +114,11 @@ class QueryUnderstandingResult:
          ["A公司的营收", "B公司的营收"]两个子查询分别检索，
          然后合并结果。比用完整问题检索更精准。但不建议拆太多，
          通常是3个以内，否则检索延迟会线性增长。
+
+      Q: detected_kb_name 和外部传入的 kb_name 哪个优先级高？
+      A: 外部传入的 kb_name（用户/API显式指定）优先级最高。
+         detected_kb_name 只在外部未指定时作为兜底使用。
+         这样既保留了显式过滤的能力，又为模糊查询提供了自动推断。
     """
     # 【作用】用户输入的原始问题文本
     original_query: str
@@ -123,6 +136,8 @@ class QueryUnderstandingResult:
     needs_clarification: bool
     # 【作用】如果需要澄清，澄清提示语的内容
     clarification_prompt: Optional[str]
+    # 【作用】自动检测到的知识库名称（多公司场景，None=未检测到）
+    detected_kb_name: Optional[str] = None
 
 
 class QueryUnderstandingService:
@@ -134,9 +149,10 @@ class QueryUnderstandingService:
     能力范围：
       1. 意图识别 - 6类意图（财务/风险/业务/管理/对比/不明）+ 超出范围检测
       2. 实体提取 - 正则提取结构化实体 + jieba提取非结构化实体
-      3. 查询归一化 - 口语→标准表达转换
-      4. 问题分解 - 复杂问题拆成多个子查询
-      5. 消歧澄清 - 关键信息缺失时追问用户
+      3. 公司实体识别 - 从问题中识别公司名称，自动推断知识库过滤条件
+      4. 查询归一化 - 口语→标准表达转换
+      5. 问题分解 - 复杂问题拆成多个子查询
+      6. 消歧澄清 - 关键信息缺失时追问用户
 
     设计原理：
       - 纯规则驱动（正则+关键词），不依赖模型
@@ -148,7 +164,7 @@ class QueryUnderstandingService:
       A: 招股说明书的问题是领域特定的（财务/风险/业务），规则足够覆盖。
          模型方案需要标注数据、训练、部署，复杂度高很多。
          规则方案的好处是：可解释（能说清楚为什么分到某个意图）、
-         零延迟（不需要加载模型）、容易调整（加个正则就行）。
+         零延迟（不需要加载模型）、容易调整（加个规则就行）。
          如果后期需要更好的泛化能力，可以加一个小分类模型做意图识别。
 
       Q: 意图识别是怎么打分的？
@@ -167,7 +183,7 @@ class QueryUnderstandingService:
       A: (1) 意图不明确 → "没理解您的问题"
          (2) 超出范围 → "超出了知识范围"
          (3) 财务问题缺少时间 → "您想了解哪个时间段？"（这是用户最喜欢的功能）
-         (4) 指代消解 → "您指的是XXX公司吗？"
+         (4) 公司名模糊 → "请问您指的是哪家公司？"
     """
 
     def __init__(self):
@@ -266,11 +282,13 @@ class QueryUnderstandingService:
         作用：理解用户Query的主入口方法
 
         执行完整的Query理解流程：
+        0. 公司实体识别（v2.0新增，在意图识别之前运行，用于多公司知识库过滤）
         1. 意图识别
         2. 实体提取
         3. 查询归一化
         4. 问题分解
         5. 消歧处理
+        6. kb_name消歧（v2.0新增：模糊问题时如果检测到可能的多公司歧义，提示用户指定）
 
         Args:
             query: 用户原始问题
@@ -279,6 +297,15 @@ class QueryUnderstandingService:
         Returns:
             QueryUnderstandingResult: 包含完整理解结果的数据类
         """
+        # 【作用】步骤0：公司实体识别（v2.0）
+        # 【原理】在意图识别之前运行，因为公司名检测是独立于意图的
+        # 【设计意图】无论用户问财务、业务还是风险，公司实体识别都在最前面执行
+        detected_kb_name = resolve_kb_name(query)
+
+        # 存一份原始问题用于 kb_name 澄清判断
+        # 如果公司名模糊但问题内容指向特定行业/财务数据，触发 kb_name 消歧
+        original_query = query
+
         # 【作用】步骤1：识别用户意图和置信度
         intent, confidence = self._recognize_intent(query)
 
@@ -296,16 +323,88 @@ class QueryUnderstandingService:
             query, intent, entities, conversation_history
         )
 
+        # 【作用】步骤6：如果不需要其他澄清但公司名模糊，触发 kb_name 消歧（v2.0）
+        # 【设计意图】解决"公司营收多少"这种既没说年份也没说公司的模糊问题
+        #           场景1：财务问题无公司名无时间 → 先问时间（原有逻辑已有）
+        #           场景2：业务/风险类问题无公司名 → 检查是否有多公司歧义
+        if not needs_clarification and detected_kb_name is None:
+            kb_needs = self._check_kb_clarification(query, intent, conversation_history)
+            if kb_needs:
+                needs_clarification, clarification_prompt = kb_needs
+
         # 【作用】返回完整的理解结果，打包成QueryUnderstandingResult
         return QueryUnderstandingResult(
-            original_query=query,
+            original_query=original_query,
             intent=intent,
             intent_confidence=confidence,
             entities=entities,
             normalized_query=normalized_query,
             sub_queries=sub_queries,
             needs_clarification=needs_clarification,
-            clarification_prompt=clarification_prompt
+            clarification_prompt=clarification_prompt,
+            detected_kb_name=detected_kb_name,
+        )
+
+    def _check_kb_clarification(
+        self,
+        query: str,
+        intent: IntentType,
+        conversation_history: Optional[List[Dict]],
+    ) -> Optional[Tuple[bool, str]]:
+        """
+        作用：检查是否因公司名模糊需要向用户澄清（v2.0 新增）
+
+        触发条件：
+          1. 问题涉及公司核心信息（业务/财务/风险）但没指名公司
+          2. 对话历史中也没有明确指代
+          3. 不是对比类问题（对比类天然跨公司）
+
+        Args:
+            query: 用户问题
+            intent: 识别的意图
+            conversation_history: 对话历史
+
+        Returns:
+            Optional[Tuple[bool, str]]: (True, 澄清提示语) 或 None
+        """
+        # 对比类问题不需要 kb_name 澄清（天然跨公司）
+        if intent == IntentType.COMPARISON:
+            return None
+
+        # 问候/闲聊不触发
+        if intent in (IntentType.GREETING, IntentType.UNCLEAR):
+            return None
+
+        # 检查问题本身是否包含"公司""发行"等模糊指代
+        # 且不含具体公司名（detected_kb_name 已为 None 才进入此函数）
+        company_indicators = [
+            r"(公司|企业|发行人|本[公企])",
+            r"(营收|收入|利润|资产|负债|风险|业务|产品|技术|专利|股本|发行)",
+        ]
+        has_indicator = any(re.search(p, query) for p in company_indicators)
+        if not has_indicator:
+            return None
+
+        # 检查对话历史中是否有公司名信息
+        if conversation_history:
+            for hist in reversed(conversation_history):
+                if isinstance(hist, dict):
+                    hist_q = hist.get("query", "") or hist.get("question", "")
+                    if hist_q:
+                        hist_kb = resolve_kb_name(hist_q)
+                        if hist_kb is not None:
+                            # 历史中有明确公司，可以推断
+                            return None
+
+        # 收集可用知识库列表，生成澄清提示
+        kbs = list_knowledge_bases()
+        kb_list = "、".join(
+            f'"{info["description"]}"' for _, info in kbs.items()
+        )
+
+        return True, (
+            f"请问您指的是哪家公司？当前可查询以下知识库：{kb_list}。"
+            f"您可以直接说公司全称或简称。"
         )
 
     def _recognize_intent(self, query: str) -> Tuple[IntentType, float]:
@@ -492,6 +591,22 @@ class QueryUnderstandingService:
         expanded = self._expand_vague_query(query)
         if len(expanded) > 1:
             sub_queries = expanded
+
+        # 【作用】组织架构类问题：检测"下设/部门构成/组成部分/由哪些部门"等关键词
+        #          生成含具体部门名称的子查询，提高LM部门结构类chunk的检索命中
+        # 【原理】向量检索对"销售部由哪些部门构成"这种层级关系问题效果不稳定，
+        #          因为BGE-M3可能把语义相近的"销售团队划分为3部分"当成更匹配的chunk。
+        #          通过加入具体部门名称作为关键词，BM25+向量双路检索互补。
+        # 【设计意图】解决"组织架构"类问题的检索精度
+        structure_keywords = ["下设", "部门构成", "组成部分", "由哪些部门", "部门设置", "组织架构", "销售部", "市场部"]
+        if any(kw in query for kw in structure_keywords):
+            # 添加部门结构关键词到子查询中
+            dept_queries = [query]
+            if "下设" not in query:
+                dept_queries.append(f"{query} 下设")
+            if "部门" in query and "组织结构" not in query:
+                dept_queries.append(query.replace("部门", "组织结构"))
+            sub_queries = list(dict.fromkeys(dept_queries))  # 去重保持顺序
 
         # 【作用】公司信息查询改写：添加"母公司"或"发行人"以区分母公司和子公司
         # 【原理】招股说明书中同时包含母公司和子公司信息，向量检索可能返回子公司信息

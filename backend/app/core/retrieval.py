@@ -560,9 +560,16 @@ class RetrievalService:
                     return [], q, h, u.clarification_prompt
                 # 【作用】取出模型规范化后的查询语句（可能纠正了错别字、补全了缩写）
                 q = u.normalized_query
-                # 【作用】如果模型生成了多个子查询，且多于一个，就取第一个子查询作为主要查询
+                # 【作用】如果模型生成了多个子查询，使用全部子查询做多路检索
+                # 【原理】单查询可能只匹配到语义近似的chunk（如"销售团队划分"而非"销售部部门构成"），
+                #        多个子查询分别编码检索后合并，能覆盖不同维度的chunk。
+                # 【适用场景】组织架构类问题（涉及多个部门名）、对比类问题（涉及多家公司）
+                #       也保留原有的单查询方式作为备选
                 if u.sub_queries and len(u.sub_queries) > 1:
-                    q = u.sub_queries[0]
+                    # 将所有子查询的关键词合并为一条复合查询，保留语义的同时强化关键词
+                    # 例如 ["销售部由哪些部门构成", "销售部下设", "销售部组织结构"]
+                    # → "销售部由哪些部门构成 下设 组织结构"
+                    q = " ".join(sorted(set(u.sub_queries), key=u.sub_queries.index))
             except Exception:
                 # 【作用】如果 Query 理解过程出错，就静默忽略，使用原始的问题继续检索
                 pass
