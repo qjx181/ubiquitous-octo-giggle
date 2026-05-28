@@ -28,6 +28,7 @@ import json
 import sys
 import os
 import logging
+import threading
 from contextlib import contextmanager
 from typing import Any
 
@@ -197,12 +198,21 @@ def main_stdio():
 
     logger.info("🚀 启动 MCP Server (Stdio 模式)")
 
-    # 服务初始化可能输出 tqdm 进度条到 stdout，
-    # 用 _QuietStdout 重定向到 stderr，避免污染 MCP JSON-RPC 管道
-    with _QuietStdout():
-        service = load_rag_service()
-
+    # 先创建 server 实例，再在后台加载模型
+    # 避免 BGE-M3 加载（~30秒）阻塞 MCP 握手导致超时
     server = Server("rag-prospectus")
+    service = None
+    service_ready = threading.Event()
+
+    def _init_service():
+        """在后台线程中初始化服务（不阻塞 MCP 握手）"""
+        nonlocal service
+        with _QuietStdout():
+            service = load_rag_service()
+        service_ready.set()
+        logger.info("✅ RAG 服务初始化完成")
+
+    threading.Thread(target=_init_service, daemon=True).start()
 
     @server.list_tools()
     async def list_tools() -> list[Tool]:
@@ -259,6 +269,11 @@ def main_stdio():
 
     @server.call_tool()
     async def call_tool(name: str, arguments: dict) -> list[TextContent]:
+        # 等待后台服务初始化完成（不阻塞事件循环）
+        if not service_ready.is_set():
+            loop = asyncio.get_event_loop()
+            await loop.run_in_executor(None, service_ready.wait)
+
         if name == "rag_query":
             result = await handle_rag_query(service, arguments)
         elif name == "rag_search":
